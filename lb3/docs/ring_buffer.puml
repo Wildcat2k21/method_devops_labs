@@ -1,0 +1,29 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+title Кольцевой буфер очереди (with_capacity(4))
+
+map "enqueue 1,2,3" as s1 {
+  buf => [1, 2, 3, _]
+  head => 0
+  len => 3
+}
+map "dequeue ×2" as s2 {
+  buf => [_, _, 3, _]
+  head => 2
+  len => 1
+}
+map "enqueue 4,5,6 (перенос через конец)" as s3 {
+  buf => [5, 6, 3, 4]
+  head => 2
+  len => 4
+}
+map "enqueue 7 (буфер полон → grow)" as s4 {
+  buf => [3, 4, 5, 6, 7, _, _, _]
+  head => 0
+  len => 5
+}
+s1 -> s2
+s2 -> s3
+s3 -> s4
+@enduml

@@ -1,0 +1,57 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam classBackgroundColor #F4F8FD
+skinparam classBorderColor #2B6CB0
+hide empty members
+title Структуры данных ЛР 3
+
+class "Queue<T>" as Queue {
+  - buf: Vec<Option<T>>
+  - head: usize
+  - len: usize
+  --
+  + new() / with_capacity(n)
+  + enqueue(&mut self, value: T)
+  + dequeue(&mut self) -> Option<T>
+  + peek(&self) -> Option<&T>
+  + len() / is_empty() / capacity()
+  + iter() -> impl Iterator<Item = &T>
+  - grow()
+}
+
+class "Stack<T>" as Stack {
+  - items: Vec<T>
+  --
+  + new()
+  + push(&mut self, value: T)
+  + pop(&mut self) -> Option<T>
+  + peek(&self) -> Option<&T>
+  + len() / is_empty()
+  + iter() -> impl Iterator<Item = &T>
+}
+
+interface Default
+interface "FromIterator<T>" as FromIter
+interface Debug
+
+Queue ..|> Default
+Queue ..|> FromIter
+Queue ..|> Debug
+Stack ..|> Default
+Stack ..|> FromIter
+Stack ..|> Debug
+
+note bottom of Queue
+  FIFO на кольцевом буфере:
+  tail = (head + len) % capacity.
+  При заполнении ёмкость удваивается,
+  элементы переписываются по порядку.
+end note
+
+note bottom of Stack
+  LIFO: вершина — последний
+  элемент вектора, push/pop
+  без сдвигов, O(1) амортизированно.
+end note
+@enduml
