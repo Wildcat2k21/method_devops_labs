@@ -1,0 +1,40 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam componentStyle rectangle
+title Вариант B: задачи tokio — модель M:N (как горутины)
+
+package "JoinSet: 20 лёгких задач (M)" {
+  [fib(1)] as t1
+  [fact(1)] as t2
+  [fib(2)] as t3
+  [...] as t4
+  [fact(10)] as t5
+}
+
+package "Планировщик tokio (work-stealing)" {
+  [tokio-worker-1] as w1
+  [tokio-worker-2] as w2
+  [tokio-worker-3] as w3
+  [tokio-worker-4] as w4
+}
+
+node "Потоки ОС (N = 4)" as os
+
+t1 --> w1
+t2 --> w2
+t3 --> w3
+t4 --> w4
+t5 --> w2
+w1 --> os
+w2 --> os
+w3 --> os
+w4 --> os
+
+note right of os
+  Задача занимает сотни байт,
+  поток ОС — мегабайты стека.
+  Свободный рабочий поток «крадёт»
+  задачи из очередей соседей.
+end note
+@enduml

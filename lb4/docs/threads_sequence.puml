@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam sequenceParticipantBackgroundColor #F4F8FD
+skinparam sequenceParticipantBorderColor #2B6CB0
+title Вариант A: потоки ОС + канал mpsc (аналог go + chan)
+
+participant "main" as M
+queue "mpsc::channel" as CH
+participant "поток fib-i" as F
+participant "поток fact-i" as X
+
+M -> CH : (tx, rx) = channel()
+loop i = 1..10
+  M -> F ** : thread::spawn(fib(i))\n//tx.clone() перемещается в поток//
+  M -> X ** : thread::spawn(fact(i))
+end
+M -> M : drop(tx)\n//аналог close(ch)//
+par выполняются конкурентно
+  F -> CH : tx.send(Outcome{fib, i, F(i)})
+  F -> F !! : завершение
+else
+  X -> CH : tx.send(Outcome{fact, i, i!})
+  X -> X !! : завершение
+end
+M -> CH : rx.iter().collect()
+CH --> M : 20 результатов в порядке поступления
+note right of M : цикл приёма завершается, когда\nуничтожены все отправители tx
+M -> M : join() всех потоков
+@enduml

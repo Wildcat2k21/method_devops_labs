@@ -1,0 +1,18 @@
+[package]
+name = "lb4"
+version = "0.1.0"
+description = "ЛР 4: конкурентные вычисления (аналог горутин)"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[dependencies]
+tokio.workspace = true
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true
