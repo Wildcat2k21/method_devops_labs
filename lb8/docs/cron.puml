@@ -1,0 +1,16 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam nodeBackgroundColor #F4F8FD
+skinparam nodeBorderColor #2B6CB0
+title Вариант 10: crond в Alpine пишет дату в именованный том
+
+node "cron-writer (lb8-cron)\nalpine:3.24 + tzdata\nPID 1: crond -f -d 5" as c
+file "/etc/crontabs/root\n* * * * * date >> /data/dates.log" as tab
+database "том crondata\n/data/dates.log\n+1 строка в минуту" as vol
+node "docker run --rm alpine\n(проверка из другого контейнера)" as reader
+
+tab -> c
+c --> vol : каждую минуту
+reader ..> vol : ls, head
+@enduml

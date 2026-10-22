@@ -1,0 +1,20 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam rectangleBackgroundColor #F4F8FD
+skinparam rectangleBorderColor #2B6CB0
+title Многоэтапная сборка lb6/Dockerfile
+
+rectangle "контекст сборки\n(корень воркспейса, с .dockerignore: 208 КБ)" as ctx
+rectangle "**chef**\nrust:1.99-alpine3.24 + musl-dev\n+ cargo-chef" as chef
+rectangle "**planner**\nCOPY . .\ncargo chef prepare → recipe.json" as planner
+rectangle "**builder** (2,21 ГБ)\nCOPY recipe.json\ncargo chef cook (слой зависимостей, 521 МБ)\nCOPY . .\ncargo build ~--release ~--bin $BIN" as builder
+rectangle "**runtime**\nalpine:3.24 + пользователь app\n/usr/local/bin/app\n**pharmacy-service:v1 — 20 МБ**\norder-service:v1 — 13,9 МБ" as runtime
+
+ctx --> planner
+ctx --> builder
+chef --> planner
+chef --> builder
+planner --> builder : recipe.json
+builder --> runtime : только бинарник
+@enduml

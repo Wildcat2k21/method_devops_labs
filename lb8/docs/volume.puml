@@ -1,0 +1,22 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam nodeBackgroundColor #F4F8FD
+skinparam nodeBorderColor #2B6CB0
+title Задание 3: данные живут в томе, а не в контейнере
+
+node "pg1 (удалён: docker rm -f)" as pg1 #EEEEEE
+node "pg2 (новый контейнер)" as pg2
+database "том pgdata\n/var/lib/docker/volumes/pgdata/_data\nтаблица medicines" as vol
+
+pg1 ..> vol : -v pgdata:/var/lib/postgresql/data\n(запись CREATE TABLE, INSERT)
+pg2 --> vol : -v pgdata:/var/lib/postgresql/data\n(SELECT видит данные)
+
+note right of vol
+  Записываемый слой контейнера
+  удаляется вместе с контейнером,
+  а именованный том — отдельный
+  объект Docker со своим жизненным
+  циклом (docker volume rm).
+end note
+@enduml

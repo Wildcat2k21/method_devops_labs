@@ -1,0 +1,20 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam nodeBackgroundColor #F4F8FD
+skinparam nodeBorderColor #2B6CB0
+title Задание 4: два контейнера в пользовательской сети appnet
+
+node "Хост (Docker Engine)" {
+  frame "сеть appnet (bridge, 172.19.0.0/16)" {
+    node "db\npostgres:16\n172.19.0.2:5432" as db
+    node "api\npharmacy-service:v1\n172.19.0.3:8080, :9090" as api
+    component "встроенный DNS\n127.0.0.11" as dns
+  }
+}
+
+api --> dns : nslookup db
+dns --> api : db → 172.19.0.2
+api --> db : ping db
+db --> api : GET http://api:8080/health
+@enduml
