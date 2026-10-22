@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam ActivityBackgroundColor #F4F8FD
+skinparam ActivityBorderColor #2B6CB0
+title Задание 3: сдвиги вокруг наибольшего нечётного элемента
+
+start
+:(pos, value) = max_odd(arr)
+(первое вхождение максимума среди x % 2 != 0);
+if (нечётные элементы найдены?) then (нет)
+  :вернуть None
+  (массив не изменяется);
+  stop
+else (да)
+endif
+:(left, rest) = arr.split_at_mut(pos)
+right = &mut rest[1..]
+//два непересекающихся изменяемых среза//;
+:k = 0;
+while (k < 3?) is (да)
+  :cyclic_shift_left_once(right)
+  [a, b, c] -> [b, c, a];
+  :k += 1;
+endwhile (нет)
+:cyclic_shift_right_once(left)
+[a, b, c] -> [c, a, b];
+:вернуть Some((pos, value));
+stop
+@enduml
