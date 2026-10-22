@@ -1,0 +1,38 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam sequenceParticipantBackgroundColor #F4F8FD
+skinparam sequenceParticipantBorderColor #2B6CB0
+title Продажа лекарства через HTTP: прохождение запроса по слоям
+
+actor curl
+participant "transport::http\n(axum handler)" as H
+participant "Endpoints.sell" as E
+participant "Logging<S>" as L
+participant "Pharmacy<R>" as S
+database "InMemoryRepository" as R
+
+curl -> H : POST /medicines/{id}/sell\n{"count": 50}
+H -> H : decode: Path(id) + Json<SellBody>
+H -> E : SellRequest { id, count }
+E -> L : sell(&id, 50).await
+L -> S : sell(&id, 50).await
+S -> S : count > 0?
+S -> R : take(id, 50)
+R -> R : write-lock;\nquantity.checked_sub(50)
+alt остатка хватает
+  R --> S : Ok(remaining)
+  S --> L : Ok(())
+  L -> L : info!(method="sell", took=...)
+  L --> E : Ok(())
+  E --> H : Ok(SellResponse)
+  H --> curl : 204 No Content
+else остатка не хватает
+  R --> S : Err(InsufficientStock{available: 15, requested: 50})
+  S --> L : Err(...)
+  L -> L : warn!(method="sell", err=...)
+  L --> E : Err(...)
+  E --> H : Err(...)
+  H --> curl : 409 Conflict\n{"error": "недостаточно товара ..."}
+end
+@enduml

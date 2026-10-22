@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package pharmacy.v1;
+
+// Сервис «Аптека» (вариант 10).
+service Pharmacy {
+  // Добавляет лекарство и возвращает присвоенный идентификатор.
+  rpc Create(CreateRequest) returns (CreateResponse);
+  // Возвращает лекарство по идентификатору.
+  rpc GetByID(GetByIDRequest) returns (GetByIDResponse);
+  // Продаёт count единиц лекарства, уменьшая остаток.
+  rpc Sell(SellRequest) returns (SellResponse);
+}
+
+message Medicine {
+  string id = 1;
+  string name = 2;
+  string manufacturer = 3;
+  double price = 4;
+  bool prescription = 5;
+  uint32 quantity = 6;
+}
+
+message CreateRequest {
+  Medicine medicine = 1;
+}
+
+message CreateResponse {
+  string id = 1;
+}
+
+message GetByIDRequest {
+  string id = 1;
+}
+
+message GetByIDResponse {
+  Medicine medicine = 1;
+}
+
+message SellRequest {
+  string id = 1;
+  uint32 count = 2;
+}
+
+message SellResponse {}

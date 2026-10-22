@@ -1,0 +1,38 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam rectangleBackgroundColor #F4F8FD
+skinparam rectangleBorderColor #2B6CB0
+title Сервис «Аптека»: трёхслойная архитектура в стиле Go kit
+
+actor "curl" as curl
+actor "grpcurl" as grpcurl
+
+rectangle "bin/pharmacy.rs (tokio)" {
+  rectangle "Транспортный слой" as T {
+    component "HTTP / JSON\naxum, :8080\ntransport::http" as HTTP
+    component "gRPC / protobuf\ntonic, :9090\ntransport::grpc" as GRPC
+    component "gRPC reflection" as REFL
+  }
+  rectangle "Слой эндпоинтов" as E {
+    component "Endpoints\ncreate / get_by_id / sell\nArc<dyn Fn(Req) -> BoxFuture<Result<Resp>>>" as EP
+  }
+  rectangle "Сервисный слой" as S {
+    component "Logging<S>\n(middleware)" as LOG
+    component "Pharmacy<R>\nimpl PharmacyService" as SVC
+  }
+  rectangle "Хранилище" as R {
+    database "InMemoryRepository\nRwLock<HashMap<String, Medicine>>" as REPO
+  }
+}
+
+curl --> HTTP : POST /medicines\nGET /medicines/{id}\nPOST /medicines/{id}/sell
+grpcurl --> GRPC : pharmacy.v1.Pharmacy/*
+grpcurl ..> REFL : list / describe
+HTTP --> EP : decode -> CreateRequest...
+GRPC --> EP : pb -> CreateRequest...
+EP --> LOG
+LOG --> SVC
+SVC --> REPO : insert / get / take
+@enduml

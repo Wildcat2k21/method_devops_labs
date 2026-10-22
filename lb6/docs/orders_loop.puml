@@ -1,0 +1,31 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam ActivityBackgroundColor #F4F8FD
+skinparam ActivityBorderColor #2B6CB0
+title Задание 1: однопоточный сервер заказов (std::net)
+
+start
+:TcpListener::bind("0.0.0.0:8080");
+:store = OrderStore::new();
+repeat
+  :stream = listener.incoming().next();
+  :stream.set_read_timeout(5 с);
+  :Request::read_from(stream)
+  строка запроса + заголовки + тело (Content-Length);
+  if (запрос разобран?) then (да)
+    :router::handle(&request, &mut store)
+    POST /orders | GET /orders/{id} | GET /orders;
+  else (нет)
+    :400 Bad Request;
+  endif
+  :response.write_to(stream)
+  Connection: close;
+repeat while (сервер работает)
+stop
+note right
+  Соединения обрабатываются строго
+  по очереди, поэтому хранилище
+  передаётся как &mut без Mutex.
+end note
+@enduml
