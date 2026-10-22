@@ -45,7 +45,7 @@ fn validate(m: &Medicine) -> Result<(), Error> {
             "manufacturer не должно быть пустым".into(),
         ));
     }
-    if !(m.price.is_finite() && m.price > 0.0) {
+    if !(m.price.is_finite() && m.price >= 0.0) {
         return Err(Error::InvalidArgument(
             "price должна быть положительным числом".into(),
         ));
