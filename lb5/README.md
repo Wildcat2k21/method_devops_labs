@@ -12,7 +12,7 @@
 изучить основной цикл работы с Git: настройку, коммиты, ветки, слияние,
 игнорирование файлов, разрешение конфликтов и публикацию на GitHub.
 
-**Ссылка на удалённый репозиторий:** <ССЫЛКА НА РЕПОЗИТОРИЙ>
+**Ссылка на удалённый репозиторий:** <https://github.com/Wildcat2k21/method_devops_labs>
 
 ## Задание
 
@@ -39,19 +39,24 @@
 
 ## Ход работы
 
-Файлы работы подготовлены в каталоге `lb5/` воркспейса:
+### Организация работы
+
+Задание предполагает отдельный локальный репозиторий `~/devops/lab5/git` и
+отдельный удалённый репозиторий `devops-lab5`. Поскольку все лабораторные
+работы курса ведутся в одном Cargo-воркспейсе, git-часть работы (шаги 7–11)
+выполнена прямо в его репозитории, а материалы ЛР 5 лежат в каталоге `lb5/`.
+Отдельный репозиторий `devops-lab5` не создавался: его роль выполняет общий
+репозиторий <https://github.com/Wildcat2k21/method_devops_labs>. Основная
+ветка — `master` (в тексте задания — `main`). Linux-часть (шаги 2–5)
+выполнена, как требуется, в `~/devops/lab5`.
 
 ```text
 lb5/
-├── README.md                   — этот отчёт
-├── prepare.sh                  — создание структуры ~/devops/lab5 и файлов (шаги 2–4, 7)
-├── files/
-│   ├── linux/info.sh           — скрипт шага 4
-│   └── git/
-│       ├── README.md           — описание работы для репозитория devops-lab5
-│       ├── linux-commands.md   — файл для ветки feature/commands (шаг 8)
-│       └── .gitignore          — шаг 10
-└── screenshots/                — скриншоты ключевых этапов
+├── README.md                — этот отчёт (шаг 7: первый коммит работы)
+├── linux-commands.md        — шпаргалка команд (шаг 8, ветка feature/commands; шаг 11)
+├── prepare.sh               — подготовка ~/devops/lab5: commands.txt, info.sh (шаги 2–4)
+├── files/linux/info.sh      — скрипт шага 4
+└── screenshots/             — скриншоты шагов 1–9
 ```
 
 ### Шаг 1. Операционная система
@@ -175,8 +180,8 @@ $ find ~/devops -type f -name "*.txt" -exec grep -Hn "Linux" {} +
 ### Шаг 6. Настройка Git
 
 ```bash
-git config --global user.name  "chainwarden771"
-git config --global user.email "lickmysh0es@yandex.ru"
+git config --global user.name  "wildcat2k21"
+git config --global user.email "wildcat2k21@gmail.com"
 git config --global --list | grep user
 ```
 
@@ -185,13 +190,15 @@ git config --global --list | grep user
 
 ![git config](screenshots/06_git_config.png)
 
-### Шаг 7. Репозиторий и первый коммит
+### Шаг 7. Первый коммит
+
+Репозиторий воркспейса уже существовал (`git init`, подключённый `origin` и
+пробный коммит при настройке SSH-доступа к GitHub). Первым коммитом работы
+добавлен файл с её описанием — этот отчёт `lb5/README.md`:
 
 ```bash
-cd ~/devops/lab5/git
-git init -b main          # создать репозиторий с основной веткой main
-git status                # README.md — неотслеживаемый файл
-git add README.md         # добавить в индекс (staging area)
+git status                  # lb5/README.md — в индексе, остальное не отслеживается
+git add lb5/README.md       # добавить в индекс (staging area)
 git commit -m "docs: описание лабораторной работы №5"
 git log --oneline
 ```
@@ -205,117 +212,232 @@ git log --oneline
 
 ```bash
 git switch -c feature/commands      # создать ветку и перейти в неё
-cp …/lb5/files/git/linux-commands.md .
+cp …/linux-commands.md .
 git add linux-commands.md
 git commit -m "docs: список команд Linux и Git"
-git switch main
-git merge feature/commands          # fast-forward: main не менялась после ответвления
+git switch master
+git merge feature/commands          # Fast-forward
 git log --oneline --graph --all
 ```
 
-Так как после создания ветки в `main` не было новых коммитов, слияние
-выполняется перемоткой (fast-forward): указатель `main` просто сдвигается на
-коммит ветки, отдельный коммит слияния не нужен.
+Так как после создания ветки в `master` не было новых коммитов, слияние
+выполнено перемоткой (fast-forward): указатель `master` просто сдвинулся на
+коммит ветки, отдельный коммит слияния не понадобился. На скриншоте также
+видна попытка `git switch main`: ветки `main` в этом репозитории нет, основная
+ветка называется `master`. Позже файл перенесён в `lb5/linux-commands.md`
+(`git mv`, история сохранена).
 
 ![Ветка и слияние](screenshots/08_feature_branch.png)
 
 ### Шаг 9. Публикация на GitHub
 
-На GitHub создан пустой публичный репозиторий `devops-lab5` (без README, чтобы
-истории не расходились). Затем локальный репозиторий связан с удалённым и
-отправлен:
+Удалённый репозиторий подключён по SSH через алиас `github-wildcat` из
+`~/.ssh/config` (отдельный ключ для этого аккаунта GitHub):
 
 ```bash
-git remote add origin https://github.com/<логин>/devops-lab5.git
-git push -u origin main             # -u запоминает origin/main как upstream
-git push origin feature/commands
+git push                            # master -> origin/master
+git push origin feature/commands    # новая ветка на GitHub
 git remote -v
 ```
 
 ![git push](screenshots/09_github_push.png)
 
-![Репозиторий на GitHub](screenshots/09_github_page.png)
+Ссылка на репозиторий: <https://github.com/Wildcat2k21/method_devops_labs>.
 
 ### Шаг 10. Файл .gitignore
 
-```gitignore
-# Журналы и временные файлы
-*.log
-*.tmp
-
-# Виртуальное окружение Python
-.venv/
-```
-
-Проверка: создаются файлы, подпадающие под правила, и выполняется `git add .`.
-В индекс попадает только `.gitignore`, а `git check-ignore -v` показывает,
-каким правилом исключён каждый файл.
+В воркспейсе `.gitignore` уже исключал артефакты сборки Rust. В него
+добавлены правила задания: `*.log`, `*.tmp` и каталог `.venv/`. Проверка: созданы
+файлы, подпадающие под правила; `git add` отказывается их добавлять, а
+`git check-ignore -v` показывает, каким правилом исключён каждый файл:
 
 ```bash
-touch debug.log cache.tmp
-mkdir -p .venv && touch .venv/pyvenv.cfg
-git status --short
-git add .
-git status --short
-git check-ignore -v debug.log cache.tmp .venv/pyvenv.cfg
-git commit -m "chore: .gitignore для *.log, *.tmp и .venv"
+$ cat .gitignore
+# Сборка Rust
+/target/
+**/*.rs.bk
+*.profraw
+lcov.info
+coverage/
+
+# PDF-версии отчётов (генерируются tools/build_pdf.py)
+lb*/README.pdf
+
+# ЛР 5, шаг 10: журналы, временные файлы и виртуальное окружение Python
+*.log
+*.tmp
+.venv/
+__pycache__/
+
+$ touch debug.log lb5/cache.tmp && mkdir -p .venv && touch .venv/pyvenv.cfg
+
+$ ls -a debug.log lb5/cache.tmp .venv
+debug.log
+lb5/cache.tmp
+
+.venv:
+.
+..
+pyvenv.cfg
+
+$ git status --short -- .gitignore debug.log lb5/cache.tmp .venv
+?? .gitignore
+
+$ git add debug.log
+Следующие пути игнорируются одним из ваших файлов .gitignore:
+debug.log
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+
+$ git check-ignore -v debug.log lb5/cache.tmp .venv/pyvenv.cfg target/
+.gitignore:12:*.log	debug.log
+.gitignore:13:*.tmp	lb5/cache.tmp
+.gitignore:14:.venv/	.venv/pyvenv.cfg
+.gitignore:2:/target/	target/
+
+$ git add .gitignore
+
+$ git status --short --ignored -- .gitignore debug.log lb5/cache.tmp .venv
+A  .gitignore
+!! .venv/
+!! debug.log
+!! lb5/cache.tmp
+
+$ git commit -m "chore: .gitignore для target/, *.log, *.tmp и .venv"
+[master 7600fc1] chore: .gitignore для target/, *.log, *.tmp и .venv
+ 1 file changed, 15 insertions(+)
+ create mode 100644 .gitignore
+
+$ rm -rf debug.log lb5/cache.tmp .venv
 ```
 
-![.gitignore](screenshots/10_gitignore.png)
+`git status --ignored` помечает исключённые файлы как `!!`. В индекс попал
+только сам `.gitignore` (`A`). Без `/target/` в `.gitignore` git видел бы более
+10 тысяч файлов артефактов сборки — именно это произошло при первой попытке
+шага, когда шаблонный `.gitignore` заменил файл воркспейса.
 
 ### Шаг 11. Конфликт слияния
 
-Две ветки изменяют одну и ту же (первую) строку `README.md` по-разному:
+Две ветки изменяют одну и ту же (первую) строку `lb5/linux-commands.md`
+по-разному. Первая ветка сливается перемоткой, вторая — с конфликтом:
 
 ```bash
-git switch -c conflict-a
-sed -i '1s/.*/# devops-lab5: Linux и Git/' README.md
-git commit -am "docs: заголовок README (ветка conflict-a)"
+$ head -n 1 lb5/linux-commands.md
+# Основные команды Linux
 
-git switch main
-git switch -c conflict-b
-sed -i '1s/.*/# devops-lab5 — лабораторная работа №5/' README.md
-git commit -am "docs: заголовок README (ветка conflict-b)"
+$ git switch -c conflict-a
+Переключились на новую ветку «conflict-a»
 
-git switch main
-git merge conflict-a      # fast-forward
-git merge conflict-b      # CONFLICT (content): Merge conflict in README.md
+$ sed -i '1s/.*/# Основные команды Linux и Git/' lb5/linux-commands.md
+
+$ git commit -q -am 'docs(lb5): заголовок шпаргалки (ветка conflict-a)' --trailer 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'
+
+$ git switch master
+Переключились на ветку «master»
+Ваша ветка опережает «origin/master» на 11 коммитов.
+  (используйте «git push», чтобы опубликовать ваши локальные коммиты)
+
+$ git switch -c conflict-b
+Переключились на новую ветку «conflict-b»
+
+$ sed -i '1s/.*/# Шпаргалка: команды Linux/' lb5/linux-commands.md
+
+$ git commit -q -am 'docs(lb5): заголовок шпаргалки (ветка conflict-b)' --trailer 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'
+
+$ git switch master
+Переключились на ветку «master»
+Ваша ветка опережает «origin/master» на 11 коммитов.
+  (используйте «git push», чтобы опубликовать ваши локальные коммиты)
+
+$ git merge conflict-a
+Обновление 166096a..1ad0a4a
+Fast-forward
+ lb5/linux-commands.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+$ git merge conflict-b
+Автослияние lb5/linux-commands.md
+КОНФЛИКТ (содержимое): Конфликт слияния в lb5/linux-commands.md
+Сбой автоматического слияния; исправьте конфликты, затем зафиксируйте результат.
+
+$ git status --short
+UU lb5/linux-commands.md
+?? method_devops.md
+
+$ head -n 5 lb5/linux-commands.md
+<<<<<<< HEAD
+# Основные команды Linux и Git
+=======
+# Шпаргалка: команды Linux
+>>>>>>> conflict-b
+
+$ git diff
+diff --cc lb5/linux-commands.md
+index c16e047,05caca3..0000000
+--- a/lb5/linux-commands.md
++++ b/lb5/linux-commands.md
+@@@ -1,4 -1,4 +1,8 @@@
+++<<<<<<< HEAD
+ +# Основные команды Linux и Git
+++=======
++ # Шпаргалка: команды Linux
+++>>>>>>> conflict-b
+  
+  | Команда    | Назначение                                   | Пример                                   |
+  |------------|----------------------------------------------|------------------------------------------|
 ```
 
 Git не может выбрать между двумя версиями строки и помечает её маркерами:
-
-```text
-<<<<<<< HEAD
-# devops-lab5: Linux и Git
-=======
-# devops-lab5 — лабораторная работа №5
->>>>>>> conflict-b
-```
-
-![Конфликт](screenshots/11_conflict.png)
-
-Конфликт разрешён вручную: в редакторе оставлена итоговая строка
-`# devops-lab5 — Linux и Git, лабораторная работа №5`, маркеры удалены. Затем
-файл помечен как разрешённый и создан коммит слияния:
+между `<<<<<<< HEAD` и `=======` — версия текущей ветки (`master`, уже
+содержащей `conflict-a`), между `=======` и `>>>>>>> conflict-b` — версия
+сливаемой ветки. Конфликт разрешён вручную в редакторе: маркеры удалены,
+оставлена объединённая строка `# Шпаргалка: основные команды Linux и Git`.
+Затем файл помечен как разрешённый (`git add`) и создан коммит слияния:
 
 ```bash
-git add README.md
-git commit -m "merge: разрешён конфликт заголовка README"
-git log --oneline --graph --all
-git push
+$ head -n 1 lb5/linux-commands.md
+# Шпаргалка: основные команды Linux и Git
+
+$ grep -c "^<<<<<<<\|^=======\|^>>>>>>>" lb5/linux-commands.md
+0
+
+$ git add lb5/linux-commands.md
+
+$ git status --short
+M  lb5/linux-commands.md
+?? method_devops.md
+
+$ git commit -q -m 'merge: разрешён конфликт заголовка шпаргалки lb5' --trailer 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'
+
+$ git log --oneline --graph -6
+*   1b9d067 merge: разрешён конфликт заголовка шпаргалки lb5
+|\  
+| * 472a251 docs(lb5): заголовок шпаргалки (ветка conflict-b)
+* | 1ad0a4a docs(lb5): заголовок шпаргалки (ветка conflict-a)
+|/  
+* 166096a feat(lb8): основы Docker — тома, сети, Docker Hub, cron
+* 43241a2 ci(lb7): GitHub Actions — сборка, тесты, линтинг, покрытие, Docker, уведомления
+* b56c926 feat(lb6): сервис заказов и сервис «Аптека» с HTTP и gRPC
+
+$ git branch -d conflict-a conflict-b
+Ветка conflict-a удалена (была 1ad0a4a).
+Ветка conflict-b удалена (была 472a251).
 ```
 
-![Конфликт разрешён](screenshots/11_conflict_resolved.png)
+На графе видно расхождение веток `conflict-a` и `conflict-b` и коммит слияния
+с двумя родителями. Отработавшие ветки удалены (`git branch -d` удаляет
+только полностью слитые ветки).
 
 ## Результаты
 
 * Создана структура `~/devops/lab5/{git,linux}`, файл `commands.txt` и
   исполняемый скрипт `info.sh`; поиск `find` + `grep` нашёл 3 строки со словом
   Linux.
-* Git настроен; в репозитории `devops-lab5` есть первый коммит, ветка
-  `feature/commands`, слитая в `main`, `.gitignore` и коммит слияния с
-  разрешённым конфликтом.
-* Репозиторий опубликован на GitHub: <ССЫЛКА НА РЕПОЗИТОРИЙ>.
+* Git настроен. В репозитории есть первый коммит работы, ветка
+  `feature/commands`, слитая в `master` перемоткой, `.gitignore`, исключающий
+  `*.log`, `*.tmp` и `.venv/`, и коммит слияния с вручную разрешённым конфликтом.
+* Репозиторий опубликован на GitHub:
+  <https://github.com/Wildcat2k21/method_devops_labs>.
 
 ## Вывод
 
