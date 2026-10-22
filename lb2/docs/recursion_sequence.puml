@@ -1,0 +1,26 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam sequenceParticipantBackgroundColor #F4F8FD
+skinparam sequenceParticipantBorderColor #2B6CB0
+title Раскрутка рекурсии sum_recursive([7, -3, 12])
+
+participant "sum([7, -3, 12])" as A
+participant "sum([-3, 12])" as B
+participant "sum([12])" as C
+participant "sum([])" as D
+
+A -> B : 7 + sum(rest)
+activate B
+B -> C : -3 + sum(rest)
+activate C
+C -> D : 12 + sum(rest)
+activate D
+D --> C : 0 //(база рекурсии)//
+deactivate D
+C --> B : 12
+deactivate C
+B --> A : 9
+deactivate B
+note over A : 7 + 9 = **16**
+@enduml

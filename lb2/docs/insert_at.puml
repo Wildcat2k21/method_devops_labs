@@ -1,0 +1,25 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam ActivityBackgroundColor #F4F8FD
+skinparam ActivityBorderColor #2B6CB0
+title insert_at(arr, k, value)
+
+start
+if (k > len?) then (да)
+  :Err(IndexError);
+  stop
+else (нет)
+endif
+:arr.push(value)
+//новый элемент временно в конце//;
+:i = len;
+while (i > k?) is (да)
+  :arr.swap(i - 1, i)
+  //элемент «протаскивается» влево,//
+  //хвост сдвигается вправо//;
+  :i -= 1;
+endwhile (нет)
+:Ok(());
+stop
+@enduml

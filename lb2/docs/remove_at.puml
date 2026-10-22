@@ -1,0 +1,23 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam ActivityBackgroundColor #F4F8FD
+skinparam ActivityBorderColor #2B6CB0
+title remove_at(arr, k)
+
+start
+if (k >= len?) then (да)
+  :Err(IndexError);
+  stop
+else (нет)
+endif
+:i = k;
+while (i < len - 1?) is (да)
+  :arr.swap(i, i + 1)
+  //удаляемый элемент уходит в конец,//
+  //хвост сдвигается влево//;
+  :i += 1;
+endwhile (нет)
+:Ok(arr.pop());
+stop
+@enduml

@@ -1,0 +1,20 @@
+@startwbs
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+title sum_divide_and_conquer: глубина рекурсии ⌈log2 N⌉
+* sum([7, -3, 12, 5, 0, 9, -1, 4]) = 33
+** sum([7, -3, 12, 5]) = 21
+*** sum([7, -3]) = 4
+**** 7
+**** -3
+*** sum([12, 5]) = 17
+**** 12
+**** 5
+** sum([0, 9, -1, 4]) = 12
+*** sum([0, 9]) = 9
+**** 0
+**** 9
+*** sum([-1, 4]) = 3
+**** -1
+**** 4
+@endwbs
