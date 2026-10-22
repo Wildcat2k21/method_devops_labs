@@ -64,6 +64,7 @@ lb6/Dockerfile    — multi-stage сборка сервиса
 lb7/demo/
 ├── lint-error.patch     — намеренная ошибка для линтера (задание 2)
 └── failing-test.patch   — баг, ломающий тест, для проверки защиты ветки (задание 4)
+lb7/screenshots/         — скриншоты GitHub, Docker Hub и Telegram
 ```
 
 ### Задание 1. Базовый CI
@@ -115,7 +116,32 @@ env:
 [![CI](https://github.com/Wildcat2k21/method_devops_labs/actions/workflows/ci.yml/badge.svg)](https://github.com/Wildcat2k21/method_devops_labs/actions/workflows/ci.yml)
 ```
 
-[ЗАПОЛНИТЬ ПОСЛЕ ЗАПУСКА В GITHUB: список запусков на push и на PR, лог шагов Build и Test]
+Каждый push в `master` запускает оба workflow, а pull request — CI и сборку
+образа без публикации (см. задание 4):
+
+| № | Коммит                                   | Событие | CI                                   | Docker                                          |
+|---|------------------------------------------|---------|--------------------------------------|-------------------------------------------------|
+| 1 | `33fc2b5` код и отчёты ЛР 1–8            | push    | [success, 1:12](https://github.com/Wildcat2k21/method_devops_labs/actions/runs/39741379599)      | [success, 5:08](https://github.com/Wildcat2k21/method_devops_labs/actions/runs/39741379811), без публикации (секретов ещё не было) |
+| 2 | `c59a789` намеренная ошибка (задание 2)  | push    | [failure: Lint, 0:54](https://github.com/Wildcat2k21/method_devops_labs/actions/runs/39749864288)| [success, 1:55](https://github.com/Wildcat2k21/method_devops_labs/actions/runs/39749864211), опубликован, smoke-тест пройден |
+| 3 | `9cbfa29` отмена ошибки                  | push    | [success, 0:51](https://github.com/Wildcat2k21/method_devops_labs/actions/runs/39750188949)      | [success, 2:12](https://github.com/Wildcat2k21/method_devops_labs/actions/runs/39750188852), опубликован, smoke-тест пройден |
+
+Шаги job «Build & Test (Rust stable)» первого запуска, включая **Build** и
+**Test** (данные GitHub API `actions/runs/…/jobs`):
+
+```text
+Build & Test (Rust stable): success, 52 с
+   1. Set up job                          success  1 с
+   2. Run actions/checkout@v7             success  1 с
+   3. Run dtolnay/rust-toolchain@master   success  9 с
+   4. Cache cargo                         success  0 с
+   5. Build                               success  33 с
+   6. Test                                success  2 с
+  11. Post Cache cargo                    success  4 с
+  12. Post Run actions/checkout@v7        success  1 с
+  13. Complete job                        success  0 с
+```
+
+![Запуски GitHub Actions](screenshots/actions_runs.png)
 
 ### Задание 2. Матрица и линтинг
 
@@ -197,7 +223,24 @@ error: could not compile `lb6` (lib test) due to 1 previous error
 exit code: 101
 ```
 
-[ЗАПОЛНИТЬ ПОСЛЕ ЗАПУСКА В GITHUB: красный job Lint на коммите с ошибкой и зелёный — после исправления]
+Коммит с ошибкой (`c59a789`) отправлен прямо в `master` до включения защиты
+ветки, затем отменён через `git revert` (`9cbfa29`):
+
+| Job / шаг                    | [CI #2 — `c59a789`](https://github.com/Wildcat2k21/method_devops_labs/actions/runs/39749864288) | [CI #3 — `9cbfa29`](https://github.com/Wildcat2k21/method_devops_labs/actions/runs/39750188949) |
+|------------------------------|---------------------|---------------------|
+| **Lint (rustfmt + clippy)**  | **failure**         | success             |
+| — rustfmt                    | success             | success             |
+| — **clippy**                 | **failure**         | success             |
+| — workspace-hack up to date  | skipped             | success             |
+| Build & Test (Rust 1.88)     | success             | success             |
+| Build & Test (Rust stable)   | success             | success             |
+| Coverage                     | success             | success             |
+| Notify                       | failure → Telegram  | success → Telegram  |
+
+Сборка и тесты на коммите с ошибкой прошли: неиспользуемая переменная — не
+ошибка компиляции, а предупреждение. Поймал её именно линтер, потому что
+`-D warnings` превращает предупреждения в ошибки. Шаги после упавшего шага
+(`workspace-hack up to date`) пропускаются.
 
 ### Задание 3. Docker-образ
 
@@ -282,7 +325,78 @@ test** скачивает образ из Docker Hub, запускает кон�
 (*Docker Hub → Account settings → Personal access tokens*, права Read & Write).
 Пароль в CI не используется.
 
-[ЗАПОЛНИТЬ ПОСЛЕ ЗАПУСКА В GITHUB: лог push в Docker Hub, страница образа, `docker pull` + `docker run` + curl локально]
+Секреты `DOCKERHUB_USERNAME` и `DOCKERHUB_TOKEN` (personal access token с
+правами Read & Write) добавлены в репозиторий. Начиная со второго запуска образ
+публикуется, а smoke-тест скачивает его из Docker Hub и проверяет:
+
+```text
+Docker #3 (9cbfa29): success, 2:12
+  Build & Push image        success  1:47
+    Log in to Docker Hub    success  0 с
+    Build and push          success  1:24
+  Smoke test pushed image   success  11 с
+    Pull and run            success  8 с
+    curl endpoints          success  1 с
+  Notify / Send success     success  8 с
+```
+
+Теги образа в Docker Hub
+(<https://hub.docker.com/r/wildcat2k21/pharmacy-service>):
+
+```bash
+$ curl -s https://hub.docker.com/v2/repositories/wildcat2k21/pharmacy-service/tags/ | jq -r '.results[] | "\(.name)\t\(.last_updated)"'
+latest	2026-10-22T08:47:33.795207Z
+sha-9cbfa29	2026-10-22T08:47:35.519549Z
+sha-c59a789	2026-10-22T08:44:41.382667Z
+```
+
+Скачивание опубликованного образа и запуск локально. Репозиторий публичный,
+поэтому образ скачивается без учётных данных: используется пустой каталог
+конфигурации Docker. Порты 8083/9093 выбраны, потому что 8080 на машине занят
+другим сервисом:
+
+```bash
+# Образ публичный: скачиваем без учётных данных (пустой DOCKER_CONFIG)
+$ env DOCKER_CONFIG=$(mktemp -d) docker pull wildcat2k21/pharmacy-service:latest
+latest: Pulling from wildcat2k21/pharmacy-service
+b5be2532c4ac: Pulling fs layer
+529fb12e65dc: Pulling fs layer
+44136fa355b3: Already exists
+f277d64467e4: Download complete
+529fb12e65dc: Download complete
+529fb12e65dc: Pull complete
+b5be2532c4ac: Download complete
+b5be2532c4ac: Pull complete
+Digest: sha256:2f541c7187868b77f0ae669b9c6b6571dbfb28a2a2d5ee4589d6e06621eda0fe
+Status: Downloaded newer image for wildcat2k21/pharmacy-service:latest
+docker.io/wildcat2k21/pharmacy-service:latest
+
+$ docker images wildcat2k21/pharmacy-service
+IMAGE                                 ID             DISK USAGE   CONTENT SIZE   EXTRA
+wildcat2k21/pharmacy-service:latest   2f541c718786         20MB          5.9MB        
+
+$ docker run -d --rm --name pharmacy-hub -p 8083:8080 -p 9093:9090 wildcat2k21/pharmacy-service:latest
+a5a2dc2ff1ad50d02967147fe64cc64cbdc46e58440e03711815cb78038a62ad
+
+$ curl -s http://localhost:8083/health
+{"status":"ok"}
+$ curl -s -X POST http://localhost:8083/medicines -H 'Content-Type: application/json' -d '{"id":"ibu-200","name":"Ибупрофен","manufacturer":"Синтез","price":89.9,"quantity":50}'
+{"id":"ibu-200"}
+$ curl -s -i -X POST http://localhost:8083/medicines/ibu-200/sell -H 'Content-Type: application/json' -d '{"count":20}'
+HTTP/1.1 204 No Content
+date: Thu, 22 Oct 2026 08:50:34 GMT
+
+
+$ curl -s http://localhost:8083/medicines/ibu-200
+{"id":"ibu-200","name":"Ибупрофен","manufacturer":"Синтез","price":89.9,"prescription":false,"quantity":30}
+$ grpcurl -plaintext -d '{"id":"ibu-200","count":100}' localhost:9093 pharmacy.v1.Pharmacy/Sell
+ERROR:
+  Code: FailedPrecondition
+  Message: недостаточно товара ibu-200: в наличии 30, запрошено 100
+
+$ docker stop pharmacy-hub
+pharmacy-hub
+```
 
 ### Задание 4. Защита ветки
 
@@ -317,11 +431,78 @@ test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out;
 error: test failed, to rerun pass `-p lb6 --lib`
 ```
 
-После открытия PR кнопка мержа заблокирована, пока обязательные проверки не
-пройдут. Исправляющий коммит (`git revert`) делает CI зелёным, после чего PR
-сливается.
+Защита включена для `master`, обязательными отмечены все четыре проверки CI:
 
-[ЗАПОЛНИТЬ ПОСЛЕ ЗАПУСКА В GITHUB: PR с заблокированным мержем, PR после исправления, история коммитов]
+![Правило защиты ветки master](screenshots/branch_rule.png)
+
+```bash
+$ curl -s https://api.github.com/repos/Wildcat2k21/method_devops_labs/branches/master | jq -r '"protected=\(.protected) checks=\(.protection.required_status_checks.contexts | join(", "))"'
+protected=true checks=Coverage, Build & Test (Rust 1.88), Build & Test (Rust stable), Lint (rustfmt + clippy)
+```
+
+Ветка с «полезным» изменением, ломающим тест:
+
+```bash
+$ git switch -c test/branch-protection
+$ git apply lb7/demo/failing-test.patch
+$ git commit -am "feat(lb6): разрешить лекарства с нулевой ценой"
+$ git push -u origin test/branch-protection
+```
+
+Из неё открыт [pull request #1](https://github.com/Wildcat2k21/method_devops_labs/pull/1).
+CI на событии `pull_request` упал: тест `create_validates_input` поймал
+регрессию в обеих ячейках матрицы, а job Coverage, который тоже запускает тесты,
+упал вместе с ними. Три обязательные проверки красные, поэтому GitHub
+заблокировал мерж:
+
+![PR заблокирован](screenshots/pr_blocked.png)
+
+Исправление — коммит в ту же ветку, отменяющий изменение. Новый push в ветку
+PR (событие `synchronize`) заново запустил проверки, и они прошли:
+
+```bash
+$ git revert HEAD    # fix(lb6): вернуть проверку положительной цены
+$ git push origin test/branch-protection
+```
+
+| Job / шаг                    | [CI #4 — `1b7e46c`](https://github.com/Wildcat2k21/method_devops_labs/actions/runs/39750780024) | [CI #5 — `5fc571c`](https://github.com/Wildcat2k21/method_devops_labs/actions/runs/39751142097) |
+|------------------------------|---------------------|---------------------|
+| Lint (rustfmt + clippy)      | success             | success             |
+| Build & Test (Rust 1.88) — **Test**   | **failure** | success             |
+| Build & Test (Rust stable) — **Test** | **failure** | success             |
+| Coverage — **Collect coverage**       | **failure** | success             |
+| Notify                       | failure → Telegram  | success → Telegram  |
+| Docker (сборка без публикации) | [success](https://github.com/Wildcat2k21/method_devops_labs/actions/runs/39750779991) | [success](https://github.com/Wildcat2k21/method_devops_labs/actions/runs/39751142110) |
+
+Правило вначале требовало ещё и одобрения PR другим участником
+(*Require approvals: 1*). Поэтому даже с зелёными проверками мерж оставался
+заблокированным, но уже по другой причине — «At least 1 approving review is
+required»:
+
+![PR с зелёными проверками](screenshots/pr_green.png)
+
+В учебном репозитории с одним разработчиком одобрить собственный PR некому,
+поэтому требование одобрения снято, а обязательные проверки CI оставлены.
+После этого PR слит обычным коммитом слияния. Пуш в `master` запустил CI и
+Docker уже на коммите слияния (оба [success](https://github.com/Wildcat2k21/method_devops_labs/actions/runs/39752428903)), и в Docker Hub
+появился тег `sha-190840a`:
+
+```bash
+$ git log --oneline --graph -5
+*   190840a Merge pull request #1 from Wildcat2k21/test/branch-protection
+|\
+| * 5fc571c fix(lb6): вернуть проверку положительной цены
+| * 1b7e46c feat(lb6): разрешить лекарства с нулевой ценой
+|/
+* 9cbfa29 Revert "demo(lb7): намеренная ошибка — неиспользуемая переменная"
+* c59a789 demo(lb7): намеренная ошибка — неиспользуемая переменная
+```
+
+Ограничения правила действуют для всех, кроме администраторов репозитория
+(«Do not allow bypassing» не включено). На странице PR это видно по
+флажку «Merge without waiting for requirements to be met (bypass rules)». Для
+командной работы этот флажок стоит включать, чтобы правило было обязательным
+для всех.
 
 ### Задание 5. Кэширование и артефакты
 
@@ -345,7 +526,29 @@ tokio, tonic и axum занимает минуты. Ключ кэша включ
           restore-keys: ${{ runner.os }}-cargo-${{ matrix.rust }}-
 ```
 
-[ЗАПОЛНИТЬ ПОСЛЕ ЗАПУСКА В GITHUB: время первого (без кэша) и второго (с кэшем) запуска]
+Сравнение запусков без кэша (№1 — первый запуск, кэша ещё нет) и с кэшем (№3 —
+тот же `Cargo.lock`, ключ кэша совпадает):
+
+| Шаг / job                          | №1, без кэша | №3, с кэшем |
+|------------------------------------|-------------:|------------:|
+| Cache cargo (восстановление)       | 0 с (промах) | 6 с         |
+| Build, Rust stable                 | 33 с         | 5 с         |
+| Build, Rust 1.88                   | 40 с         | 11 с        |
+| clippy                             | 30 с         | 2 с         |
+| Collect coverage                   | 40 с         | 7 с         |
+| job Build & Test (Rust stable)     | 52 с         | 29 с        |
+| job Coverage                       | 53 с         | 35 с        |
+| **весь CI**                        | **1:12**     | **0:51**    |
+| Docker: Build and push (кэш `type=gha`) | 4:34    | 1:24        |
+
+В первом запуске шаг `Cache cargo` ничего не восстановил (0 с), а в конце job'а
+шаг `Post Cache cargo` сохранил кэш (4 с). В третьем запуске кэш восстановлен
+за 6 с, и компиляция сократилась в 4–7 раз: пересобирается только код
+воркспейса, а зависимости (tokio, tonic, axum, …) берутся из `target/`. Общее
+время job'ов сократилось меньше, так как фиксированная часть (запуск раннера,
+установка тулчейна ≈10 с) от кэша не зависит. Для Docker-образа эффект ещё
+заметнее (4:34 → 1:24): из кэша слоёв GitHub берётся тяжёлый слой
+`cargo chef cook` с собранными зависимостями.
 
 **Покрытие** собирается `cargo-llvm-cov` (инструментирование LLVM, точный
 построчный учёт) и сохраняется как artifact `coverage`: `lcov.info`
@@ -378,7 +581,19 @@ TOTAL                                  1265     70   94.47%
 скачивают со страницы запуска (*Artifacts → coverage*) и открывают
 `coverage/html/index.html` в браузере.
 
-[ЗАПОЛНИТЬ ПОСЛЕ ЗАПУСКА В GITHUB: блок Artifacts на странице запуска, открытый HTML-отчёт]
+Артефакт прикрепляется к каждому запуску CI. Например, у
+[запуска №3](https://github.com/Wildcat2k21/method_devops_labs/actions/runs/39750188949):
+
+```bash
+$ curl -s https://api.github.com/repos/Wildcat2k21/method_devops_labs/actions/runs/39750188949/artifacts | jq -r '.artifacts[] | "\(.name)\tsize=\(.size_in_bytes)\texpires=\(.expires_at)"'
+coverage	size=87135	expires=2026-11-05T08:46:27Z
+```
+
+Срок хранения — 14 дней (`retention-days: 14`), размер архива — 85 КБ.
+
+Скачанный архив распакован, и `coverage/html/index.html` открыт в браузере:
+
+![Отчёт покрытия из артефакта](screenshots/coverage.png)
 
 ### Вариант 10. Уведомления в Telegram и Slack
 
@@ -436,7 +651,23 @@ TOTAL                                  1265     70   94.47%
 `https://api.telegram.org/bot<TOKEN>/getUpdates` (→ секрет `TELEGRAM_TO`).
 Для Slack создаётся Incoming Webhook (→ секрет `SLACK_WEBHOOK_URL`).
 
-[ЗАПОЛНИТЬ ПОСЛЕ ЗАПУСКА В GITHUB: сообщения бота об успешной и упавшей сборке]
+Бот `@wildcat2k21_notify_bot` подключён: секреты `TELEGRAM_TOKEN` и
+`TELEGRAM_TO` (chat id личного чата) добавлены в репозиторий. В запусках
+№2 и №3 шаг Telegram выполнился в обоих workflow, а шаг Slack пропущен,
+так как секрет `SLACK_WEBHOOK_URL` не задан:
+
+```text
+CI #2 (c59a789)      Notify / Send failure   Telegram success   Slack skipped
+Docker #2 (c59a789)  Notify / Send success   Telegram success   Slack skipped
+CI #3 (9cbfa29)      Notify / Send success   Telegram success   Slack skipped
+Docker #3 (9cbfa29)  Notify / Send success   Telegram success   Slack skipped
+```
+
+![Сообщения бота в Telegram](screenshots/telegram.png)
+
+Job уведомления также пишет сводку на страницу запуска (`$GITHUB_STEP_SUMMARY`):
+
+![Сводка уведомления](screenshots/notify_summary.png)
 
 ## Результаты
 
@@ -450,7 +681,16 @@ TOTAL                                  1265     70   94.47%
 * покрытие библиотечного кода тестами — 94,47% строк;
 * образ `pharmacy-service` собирается по `lb6/Dockerfile` и весит 20 МБ.
 
-[ЗАПОЛНИТЬ ПОСЛЕ ЗАПУСКА В GITHUB: итоговая таблица запусков и ссылка на образ в Docker Hub]
+В GitHub Actions:
+
+| Задание | Результат |
+|---------|-----------|
+| 1 | CI запускается на push и pull request, шаги Build и Test видны в каждом запуске, бейджи статуса в README |
+| 2 | матрица Rust 1.88/stable и линтинг проходят; намеренная ошибка поймана job'ом Lint (clippy) |
+| 3 | образ публикуется в Docker Hub (<https://hub.docker.com/r/wildcat2k21/pharmacy-service>), проходит smoke-тест в CI, скачивается и работает локально |
+| 4 | `master` защищена четырьмя обязательными проверками; PR #1 с регрессией заблокирован, после исправления CI зелёный, PR слит (`190840a`) |
+| 5 | кэш сокращает компиляцию в 4–7 раз (CI 1:12 → 0:51, Docker 4:34 → 1:24); покрытие сохраняется как artifact `coverage` |
+| вариант 10 | уведомления об успехе и провале приходят в Telegram из обоих workflow |
 
 ## Вывод
 
