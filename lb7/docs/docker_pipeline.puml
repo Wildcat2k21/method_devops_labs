@@ -1,0 +1,26 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam ActivityBackgroundColor #F4F8FD
+skinparam ActivityBorderColor #2B6CB0
+title Workflow Docker (.github/workflows/docker.yml)
+
+start
+:push в main / тег v* / pull request;
+:**Build & Push image**
+docker/setup-buildx-action
+docker/metadata-action → теги latest, sha-xxxxxxx, X.Y.Z
+docker/build-push-action (lb6/Dockerfile, кэш type=gha);
+if (pull request?) then (да)
+  :образ только собирается
+  (без логина и push);
+else (нет)
+  :docker login (DOCKERHUB_USERNAME / DOCKERHUB_TOKEN)
+  push в Docker Hub;
+  :**Smoke test**
+  docker run образа из Docker Hub
+  curl /health, POST /medicines, sell, GET;
+endif
+:**Notify** → Telegram / Slack;
+stop
+@enduml

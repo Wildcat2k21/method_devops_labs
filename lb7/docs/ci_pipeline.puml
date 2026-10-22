@@ -1,0 +1,32 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam ActivityBackgroundColor #F4F8FD
+skinparam ActivityBorderColor #2B6CB0
+title Workflow CI (.github/workflows/ci.yml)
+
+start
+:push в main / pull request в main / вручную;
+fork
+  :**Lint**
+  rustfmt --check
+  clippy -D warnings
+  cargo hakari verify;
+fork again
+  :**Build & Test (Rust 1.88)**
+  кэш ~~/.cargo + target
+  cargo build / cargo test;
+fork again
+  :**Build & Test (Rust stable)**
+  кэш ~~/.cargo + target
+  cargo build / cargo test;
+fork again
+  :**Coverage**
+  cargo llvm-cov
+  артефакт: lcov.info + HTML;
+end fork
+:**Notify** (if: always())
+notify.yml → Telegram / Slack
+статус: success / failure;
+stop
+@enduml

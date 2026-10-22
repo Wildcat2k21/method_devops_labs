@@ -1,0 +1,158 @@
+# ЛР 7: непрерывная интеграция воркспейса (сборка, тесты, линтинг, покрытие).
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+# Новый пуш в ту же ветку отменяет устаревший запуск.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    name: Lint (rustfmt + clippy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-lint-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-lint-
+
+      - name: rustfmt
+        run: cargo fmt --all --check
+
+      - name: clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hakari
+
+      - name: workspace-hack up to date
+        run: |
+          cargo hakari generate --diff
+          cargo hakari manage-deps --dry-run
+          cargo hakari verify
+
+  test:
+    name: Build & Test (Rust ${{ matrix.rust }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Минимально поддерживаемая версия (rust-version в Cargo.toml) и текущая stable —
+        # аналог матрицы Go 1.21 / 1.22.
+        rust: ["1.88", stable]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      # Аналог кэша ~/go/pkg/mod: скачанные crates и скомпилированные зависимости.
+      - name: Cache cargo
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-${{ matrix.rust }}-
+
+      - name: Build
+        run: cargo build --workspace --all-targets --locked
+
+      - name: Test
+        run: cargo test --workspace --locked
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Cache cargo
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-cov-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-cov-
+
+      # Аналог go test -coverprofile=coverage.out: lcov-файл + HTML-отчёт.
+      # Демонстрационные бинарники (main.rs, src/bin/) тестами не покрываются
+      # и в отчёт не включаются.
+      - name: Collect coverage
+        env:
+          IGNORE: 'src/(main\.rs|bin/)'
+        run: |
+          cargo llvm-cov --workspace --locked --no-report
+          cargo llvm-cov report --ignore-filename-regex "$IGNORE" --lcov --output-path lcov.info
+          cargo llvm-cov report --ignore-filename-regex "$IGNORE" --html --output-dir coverage
+          cargo llvm-cov report --ignore-filename-regex "$IGNORE" --summary-only | tee coverage-summary.txt
+          {
+            echo '### Покрытие тестами'
+            echo '```'
+            cat coverage-summary.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: |
+            lcov.info
+            coverage-summary.txt
+            coverage/html/
+          retention-days: 14
+
+  notify:
+    name: Notify
+    needs: [lint, test, coverage]
+    if: always()
+    uses: ./.github/workflows/notify.yml
+    with:
+      workflow: CI
+      status: >-
+        ${{ contains(needs.*.result, 'failure') && 'failure'
+         || contains(needs.*.result, 'cancelled') && 'cancelled'
+         || 'success' }}
+    secrets: inherit

@@ -1,0 +1,25 @@
+@startuml
+skinparam defaultFontName "Noto Sans"
+skinparam shadowing false
+skinparam sequenceParticipantBackgroundColor #F4F8FD
+skinparam sequenceParticipantBorderColor #2B6CB0
+title Защита ветки main: PR сливается только при зелёном CI
+
+actor Разработчик as Dev
+participant "GitHub\n(ветка test/branch-protection)" as GH
+participant "GitHub Actions" as CI
+participant "Telegram" as TG
+
+Dev -> GH : git push (код с ошибкой)
+Dev -> GH : Pull request → main
+GH -> CI : запуск CI
+CI --> GH : FAIL: Build & Test
+CI -> TG : CI: failure
+GH --> Dev : «Merging is blocked:\nrequired status checks have not succeeded»
+Dev -> GH : git push (исправление)
+GH -> CI : повторный запуск CI
+CI --> GH : OK: все проверки пройдены
+CI -> TG : CI: success
+Dev -> GH : Merge pull request
+GH -> CI : push в main → CI + Docker
+@enduml

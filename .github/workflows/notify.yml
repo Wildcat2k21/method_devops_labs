@@ -1,0 +1,67 @@
+# ЛР 7, вариант 10: уведомление о статусе сборки в Telegram и/или Slack.
+# Переиспользуемый workflow: вызывается из ci.yml и docker.yml.
+# Шаг выполняется, только если задан соответствующий секрет.
+name: Notify
+
+on:
+  workflow_call:
+    inputs:
+      workflow:
+        description: Имя workflow, о котором сообщаем
+        required: true
+        type: string
+      status:
+        description: success | failure | cancelled
+        required: true
+        type: string
+    secrets:
+      TELEGRAM_TOKEN:
+        required: false
+      TELEGRAM_TO:
+        required: false
+      SLACK_WEBHOOK_URL:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  send:
+    name: Send ${{ inputs.status }}
+    runs-on: ubuntu-latest
+    env:
+      HAS_TELEGRAM: ${{ secrets.TELEGRAM_TOKEN != '' && secrets.TELEGRAM_TO != '' }}
+      HAS_SLACK: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+      ICON: ${{ inputs.status == 'success' && '✅' || inputs.status == 'cancelled' && '⚪' || '❌' }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Prepare message
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Telegram
+        if: env.HAS_TELEGRAM == 'true'
+        uses: appleboy/telegram-action@v1.1.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          format: html
+          disable_web_page_preview: true
+          message: |
+            ${{ env.ICON }} <b>${{ inputs.workflow }}</b>: ${{ inputs.status }}
+            📦 ${{ github.repository }} @ <code>${{ github.ref_name }}</code>
+            🔖 <code>${{ env.SHORT_SHA }}</code> by ${{ github.actor }} (${{ github.event_name }})
+            🔗 <a href="${{ env.RUN_URL }}">Открыть запуск #${{ github.run_number }}</a>
+
+      - name: Slack
+        if: env.HAS_SLACK == 'true'
+        uses: slackapi/slack-github-action@v4.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "${{ env.ICON }} *${{ inputs.workflow }}*: ${{ inputs.status }} — ${{ github.repository }}@${{ github.ref_name }} (${{ env.SHORT_SHA }}) <${{ env.RUN_URL }}|run #${{ github.run_number }}>"
+
+      - name: Summary
+        run: |
+          echo "### ${ICON} ${{ inputs.workflow }}: ${{ inputs.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Telegram: ${HAS_TELEGRAM}, Slack: ${HAS_SLACK}" >> "$GITHUB_STEP_SUMMARY"
