@@ -65,7 +65,6 @@ impl<R: MedicineRepository> PharmacyService for Pharmacy<R> {
     }
 
     async fn get_by_id(&self, id: &str) -> Result<Medicine, Error> {
-        let cache_hit = false; // намеренная ошибка для ЛР 7: переменная не используется
         self.repo.get(id)
     }
 
