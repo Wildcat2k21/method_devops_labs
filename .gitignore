@@ -1,0 +1,15 @@
+# Сборка Rust
+/target/
+**/*.rs.bk
+*.profraw
+lcov.info
+coverage/
+
+# PDF-версии отчётов (генерируются tools/build_pdf.py)
+lb*/README.pdf
+
+# ЛР 5, шаг 10: журналы, временные файлы и виртуальное окружение Python
+*.log
+*.tmp
+.venv/
+__pycache__/
